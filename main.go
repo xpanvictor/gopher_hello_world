@@ -3,9 +3,40 @@ package main
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"strings"
+	"sync"
+	"time"
 )
 import "github.com/gin-gonic/gin"
+
+// --- Go routine
+var wg = sync.WaitGroup{}
+var dbData = []string{"hello", "world", "master", "senku", "home"}
+var result []string
+
+// implement a wait group
+func dbCall(i int32) {
+	// time call sim
+	var delay float32 = rand.Float32() * 2000
+	time.Sleep(time.Duration(delay) * time.Millisecond)
+	result = append(result, dbData[i])
+	wg.Done()
+}
+
+func routineHandler(c *gin.Context) {
+	var t0 = time.Now()
+	for i := range dbData {
+		wg.Add(1)
+		go dbCall(int32(i))
+	}
+	wg.Wait()
+	fmt.Printf("Total exec time: %v", time.Since(t0))
+	c.JSON(200, gin.H{
+		"message": result,
+	})
+	result = []string{}
+}
 
 func handler(c *gin.Context) {
 
@@ -87,6 +118,7 @@ func log(num int32) (int32, error) {
 
 func main() {
 	router := gin.Default()
+	router.GET("/", routineHandler)
 	router.GET("/:name", handler)
 	router.Run(":5000")
 }
