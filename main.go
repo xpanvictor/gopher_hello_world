@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 import "github.com/gin-gonic/gin"
 
@@ -18,6 +19,13 @@ func handler(c *gin.Context) {
 	// append to slice
 	arrSlice = append(arrSlice, nums[2])
 	fmt.Println(arrSlice)
+
+	// string manipulation
+	var helloBuilder = strings.Builder{}
+	helloBuilder.WriteString("Hello")
+	helloBuilder.WriteString("\nWorld")
+	helloWorld := helloBuilder.String()
+	fmt.Println(helloWorld)
 
 	// car engine
 	var carEngine = CarEngine{mph: 20, gallons: 5}
