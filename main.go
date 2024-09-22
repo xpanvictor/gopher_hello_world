@@ -4,23 +4,72 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
 )
 import "github.com/gin-gonic/gin"
 
+// channels
+func process(c chan int) {
+	defer close(c) // close the channel at fn end
+	for i := 0; i < 10; i++ {
+		c <- i
+	}
+}
+
+// add something generic to the channel
+type gasEngine struct {
+	gallons uint8
+	mpg     float32
+}
+type electricEngine struct {
+	kwh   float32
+	mpkwh float32
+}
+type car[T gasEngine | electricEngine] struct {
+	carMake  string
+	carModel string
+	engine   T
+}
+
+func channelHandler(c *gin.Context) {
+	ch := make(chan int)
+	// use a routine
+	go process(ch)
+	for i := range ch {
+		fmt.Println(i)
+	}
+	var gasCar = car[gasEngine]{
+		carMake:  "Toyota",
+		carModel: "1.0",
+		engine: gasEngine{
+			gallons: 0,
+			mpg:     0,
+		},
+	}
+	c.JSON(http.StatusOK, gasCar)
+}
+
 // --- Go routine
 var wg = sync.WaitGroup{}
+
+// yeepee mutex
+var m = sync.RWMutex{}
 var dbData = []string{"hello", "world", "master", "senku", "home"}
 var result []string
+
+// with RW locks, we can have multiple readers or one writer
 
 // implement a wait group
 func dbCall(i int32) {
 	// time call sim
 	var delay float32 = rand.Float32() * 2000
 	time.Sleep(time.Duration(delay) * time.Millisecond)
+	m.Lock()
 	result = append(result, dbData[i])
+	m.Unlock()
 	wg.Done()
 }
 
@@ -30,6 +79,7 @@ func routineHandler(c *gin.Context) {
 		wg.Add(1)
 		go dbCall(int32(i))
 	}
+	// wait for any active wg element to call done
 	wg.Wait()
 	fmt.Printf("Total exec time: %v", time.Since(t0))
 	c.JSON(200, gin.H{
@@ -119,6 +169,7 @@ func log(num int32) (int32, error) {
 func main() {
 	router := gin.Default()
 	router.GET("/", routineHandler)
+	router.GET("/channel", channelHandler)
 	router.GET("/:name", handler)
 	router.Run(":5000")
 }
